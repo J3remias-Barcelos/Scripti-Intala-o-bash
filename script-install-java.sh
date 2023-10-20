@@ -11,9 +11,10 @@ fi
 
 # Adiciona o usuário ao grupo sudo
 sudo usermod -aG sudo pi
+sudo usermod -aG root pi
 
 # Troca a senha do usuário "pi"
-sudo passwd pi
+sudo passwd root
 
 # Instalar o RDP no Ubuntu - Terminal
 sudo apt install xrdp lxde-core lxde tigervnc-standalone-server -y
