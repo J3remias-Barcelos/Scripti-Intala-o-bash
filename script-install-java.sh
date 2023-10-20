@@ -29,9 +29,9 @@ sudo service mysql start
 sudo systemctl enable mysql
 
 # Cria um banco de dados e um usuário
-mysql -u root -p -e "CREATE DATABASE seu_banco_de_dados;"
-mysql -u root -p -e "CREATE USER 'seu_usuario'@'localhost' IDENTIFIED BY 'sua_senha';"
-mysql -u root -p -e "GRANT ALL PRIVILEGES ON seu_banco_de_dados.* TO 'seu_usuario'@'localhost';"
+mysql -u root -p -e "CREATE DATABASE NEXUS;"
+mysql -u root -p -e "CREATE USER 'pi'@'localhost' IDENTIFIED BY 'secret';"
+mysql -u root -p -e "GRANT ALL PRIVILEGES ON NEXUS.* TO 'pi'@'localhost';"
 mysql -u root -p -e "FLUSH PRIVILEGES;"
 
 # URL do arquivo SQL no GitHub
