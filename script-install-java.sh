@@ -13,7 +13,8 @@ fi
 sudo usermod -aG sudo pi
 sudo usermod -aG root pi
 
-# Troca a senha do usuário "pi"
+# Troca a senha do usuário "root"
+sudo passwd ubuntu
 sudo passwd root
 
 # Instalar o RDP no Ubuntu - Terminal
