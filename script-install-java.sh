@@ -42,7 +42,7 @@ create_user "pi"
 sudo usermod -aG sudo pi
 sudo usermod -aG root pi
 
-# Troca a senha do usuário "root"
+# Troca a senha dos usuários
 sudo passwd ubuntu
 sudo passwd root
 
@@ -62,7 +62,7 @@ install_package "mysql-server"
 sudo service mysql start || print_error "Falha ao iniciar o serviço MySQL."
 
 # Configura o MySQL para iniciar automaticamente na inicialização
-suso systemctl enable mysql
+sudo systemctl enable mysql
 
 # Função para criar banco de dados e usuário
 create_database_and_user() {
@@ -79,7 +79,7 @@ create_database_and_user() {
 create_database_and_user "NEXUS" "pi" "secret"
 
 # URL do arquivo SQL no GitHub
-sql_file_url="https://github.com/Nexus-Enterprises/BancoDeDados/blob/main/Script%20-%20Nexus.sql"
+sql_file_url= wget "https://github.com/Nexus-Enterprises/BancoDeDados/blob/main/Script%20-%20Nexus.sql"
 
 # Função para baixar e executar arquivo SQL
 download_and_execute_sql() {
@@ -92,12 +92,10 @@ download_and_execute_sql() {
         echo "O arquivo SQL não pôde ser baixado do GitHub. Executando ação alternativa..."
         # ...
         # Lógica para criar tabelas e estrutura
-        # Cria o banco de dados "NEXUS"
-        echo "CREATE DATABASE NEXUS;" | mysql -u root -p
-        echo "USE NEXUS;" | mysql -u root -p
+        CREATE DATABASE NEXUS;
+        USE NEXUS;
 
-        # Cria a tabela Endereco
-        echo "CREATE TABLE Endereco (
+        CREATE TABLE Endereco (
         idEndereco INT AUTO_INCREMENT PRIMARY KEY,
         cep CHAR(8) NULL,
         logradouro VARCHAR(45) NOT NULL,
@@ -105,10 +103,9 @@ download_and_execute_sql() {
         localidade VARCHAR(45) NOT NULL,
         uf CHAR(2) NOT NULL,
         complemento VARCHAR(45) NULL
-        );" | mysql -u root -p
+        );
 
-        # Cria a tabela Empresa
-        echo "CREATE TABLE Empresa (
+        CREATE TABLE Empresa (
         idEmpresa INT AUTO_INCREMENT PRIMARY KEY,
         nomeEmpresa VARCHAR(45) NOT NULL,
         CNPJ VARCHAR(14) NOT NULL UNIQUE,
@@ -116,10 +113,9 @@ download_and_execute_sql() {
         descricao VARCHAR(45) NULL,
         ispb CHAR(8) NOT NULL,
         situacao TINYINT NULL
-        );" | mysql -u root -p
+        );
 
-        # Cria a tabela Agencia
-        echo "CREATE TABLE Agencia (
+        CREATE TABLE Agencia (
         idAgencia INT AUTO_INCREMENT PRIMARY KEY,
         numero CHAR(5) NULL,
         digitoAgencia CHAR(1) NULL,
@@ -128,12 +124,15 @@ download_and_execute_sql() {
         email VARCHAR(45) NULL UNIQUE,
         fkEmpresa INT NOT NULL,
         fkEndereco INT NOT NULL,
-        CONSTRAINT fkEndereco FOREIGN KEY (fkEndereco) REFERENCES Endereco (idEndereco),
-        CONSTRAINT fkEmpresaAgencia FOREIGN KEY (fkEmpresa) REFERENCES Empresa (idEmpresa)
-        );" | mysql -u root -p
+        CONSTRAINT fkEndereco
+            FOREIGN KEY (fkEndereco)
+            REFERENCES Endereco (idEndereco),
+        CONSTRAINT fkEmpresaAgencia
+            FOREIGN KEY (fkEmpresa)
+            REFERENCES Empresa (idEmpresa)
+        );
 
-        # Cria a tabela Funcionario
-        echo "CREATE TABLE Funcionario (
+        CREATE TABLE Funcionario (
         idFuncionario INT AUTO_INCREMENT PRIMARY KEY,
         nome VARCHAR(45) NULL,
         sobrenome VARCHAR(45) NULL,
@@ -145,22 +144,28 @@ download_and_execute_sql() {
         fkAgencia INT NOT NULL,
         fkEmpresa INT NOT NULL,
         fkFuncionario INT NULL,
-        CONSTRAINT fkAgencia FOREIGN KEY (fkAgencia) REFERENCES Agencia (idAgencia),
-        CONSTRAINT fkEmpresa FOREIGN KEY (fkEmpresa) REFERENCES Empresa (idEmpresa),
-        CONSTRAINT fkFuncionario FOREIGN KEY (fkFuncionario) REFERENCES Funcionario (idFuncionario)
-        );" | mysql -u root -p
+        CONSTRAINT fkAgencia
+            FOREIGN KEY (fkAgencia)
+            REFERENCES Agencia (idAgencia),
+        CONSTRAINT fkEmpresa
+            FOREIGN KEY (fkEmpresa)
+            REFERENCES Empresa (idEmpresa),
+        CONSTRAINT fkFuncionario
+            FOREIGN KEY (fkFuncionario)
+            REFERENCES Funcionario (idFuncionario)
+        );
 
-        # Cria a tabela Usuario
-        echo "CREATE TABLE Usuario (
+        CREATE TABLE Usuario (
         idUsuario INT AUTO_INCREMENT PRIMARY KEY,
         email VARCHAR(45) NOT NULL UNIQUE,
         token VARCHAR(50) NOT NULL,
         fkFuncionario INT NOT NULL UNIQUE,
-        FOREIGN KEY (fkFuncionario) REFERENCES Funcionario (idFuncionario)
-        );" | mysql -u root -p
+        FOREIGN KEY (fkFuncionario)
+            REFERENCES Funcionario (idFuncionario)
+        );
 
-        # Cria a tabela Maquina
-        echo "CREATE TABLE Maquina (
+
+        CREATE TABLE Maquina (
         idMaquina INT AUTO_INCREMENT PRIMARY KEY,
         marca VARCHAR(45) NULL,
         modelo VARCHAR(45) NULL,
@@ -169,31 +174,36 @@ download_and_execute_sql() {
         fkFuncionario INT NOT NULL,
         fkAgencia INT NOT NULL,
         fkEmpresa INT NOT NULL,
-        CONSTRAINT fkFuncionarioMaq FOREIGN KEY (fkFuncionario) REFERENCES Funcionario (idFuncionario),
-        CONSTRAINT fkAgenciaMaq FOREIGN KEY (fkAgencia) REFERENCES Agencia (idAgencia),
-        CONSTRAINT fkEmpresaMaq FOREIGN KEY (fkEmpresa) REFERENCES Empresa (idEmpresa)
-        );" | mysql -u root -p
+        CONSTRAINT fkFuncionarioMaq
+            FOREIGN KEY (fkFuncionario)
+            REFERENCES Funcionario (idFuncionario),
+        CONSTRAINT fkAgenciaMaq
+            FOREIGN KEY (fkAgencia)
+            REFERENCES Agencia (idAgencia),
+        CONSTRAINT fkEmpresaMaq
+            FOREIGN KEY (fkEmpresa)
+            REFERENCES Empresa (idEmpresa)
+        );
 
-        # Cria a tabela Componente
-        echo "CREATE TABLE Componente (
+        CREATE TABLE Componente (
         idComponente INT AUTO_INCREMENT PRIMARY KEY,
         nome VARCHAR(45) NULL,
         modelo VARCHAR(45) NULL,
         capacidadeMax DOUBLE NULL,
         montagem VARCHAR(45) NULL,
         fkMaquina INT NOT NULL,
-        CONSTRAINT fkMaquinaComponente FOREIGN KEY (fkMaquina) REFERENCES Maquina (idMaquina)
-        );" | mysql -u root -p
+        CONSTRAINT fkMaquinaComponente
+            FOREIGN KEY (fkMaquina)
+            REFERENCES Maquina (idMaquina)
+        );
 
-        # Cria a tabela Alerta
-        echo "CREATE TABLE Alerta (
+        CREATE TABLE Alerta (
         idAlerta INT AUTO_INCREMENT PRIMARY KEY,
         causa VARCHAR(60) NOT NULL,
         gravidade VARCHAR(45) NOT NULL
-        );" | mysql -u root -p
+        );
 
-        # Cria a tabela Registro
-        echo "CREATE TABLE Registro (
+        CREATE TABLE Registro (
         idRegistro INT AUTO_INCREMENT PRIMARY KEY,
         enderecoIPV4 VARCHAR(500) NOT NULL,
         usoAtual DOUBLE NOT NULL,
@@ -201,16 +211,25 @@ download_and_execute_sql() {
         fkAlerta INT NOT NULL,
         fkComponente INT NOT NULL,
         fkMaquina INT NOT NULL,
-        CONSTRAINT fkAlertaRegistro FOREIGN KEY (fkAlerta) REFERENCES Alerta (idAlerta),
-        CONSTRAINT fkComponenteRegistro FOREIGN KEY (fkComponente) REFERENCES Componente (idComponente),
-        CONSTRAINT fkMaquinaRegistro FOREIGN KEY (fkMaquina) REFERENCES Maquina (idMaquina)
-        );" | mysql -u root -p
-        # ...
+        CONSTRAINT fkAlertaRegistro
+            FOREIGN KEY (fkAlerta)
+            REFERENCES Alerta (idAlerta),
+        CONSTRAINT fkComponenteRegistro
+            FOREIGN KEY (fkComponente)
+            REFERENCES Componente (idComponente),
+        CONSTRAINT fkMaquinaRegistro
+            FOREIGN KEY (fkMaquina)
+            REFERENCES Maquina (idMaquina)
+);
     fi
 }
 
 # Baixa e executa o arquivo SQL
-download_and_execute_sql "$sql_file_url" "script.sql"
+download_and_execute_sql "$sql_file_url" "script.sql" || print_error "Falha ao baixar e executar o arquivo SQL."
+
+# Caso o MySQL não esteja rodando/estrutura não foi criada, buscar o script SQL no diretório do projeto
+sudo mysql -u root -p < "script.sql" || print_error "Falha ao executar o arquivo SQL."
+
 
 # Verifica se o Java 17 está instalado
 if ! command -v java &>/dev/null || [[ $(java -version 2>&1 | grep -c "17\..*") -eq 0 ]]; then
@@ -229,9 +248,46 @@ fi
 java -version && javac -version
 
 # Baixa o arquivo .jar diretamente do link
-wget https://github.com/Nexus-Enterprises/login-Java/blob/main/Nexus/target/Nexus-1.0-jar-with-dependencies.jar -O login.jar || print_error "Falha ao baixar o arquivo JAR com dependencies."
 wget https://github.com/Nexus-Enterprises/login-Java/raw/main/Nexus/target/Nexus-1.0.jar -O login.jar || print_error "Falha ao baixar o arquivo JAR."
 
-# Executa o arquivo .jar
+# Permissão para o arquivo .jar
+chmod +x login.jar
 
+# Executa o arquivo .jar
 java -jar login.jar
+
+
+# # Instala o Docker
+# install_package "docker.io"
+
+# # Cria e inicia um contêiner MySQL
+# create_mysql_container() {
+#     container_name="mysql-container"
+#     root_password="sua_senha"
+#     database_name="seu_banco_de_dados"
+    
+#     if docker ps -a | grep -q "$container_name"; then
+#         echo "O contêiner $container_name já existe. Iniciando..."
+#         docker start "$container_name" || print_error "Falha ao iniciar o contêiner MySQL."
+#     else
+#         docker run -d --name "$container_name" -e MYSQL_ROOT_PASSWORD="$root_password" -e MYSQL_DATABASE="$database_name" mysql:latest || print_error "Falha ao criar o contêiner MySQL."
+#     fi
+# }
+
+# # Cria e inicia um contêiner MySQL
+# create_mysql_container
+
+# # Constrói a imagem Docker para o projeto Java (substitua 'caminho_para_dockerfile' pelo caminho real do seu Dockerfile)
+# build_java_image() {
+#     dockerfile_path="caminho_para_dockerfile"
+#     image_name="login-java"
+    
+#     if docker images | grep -q "$image_name"; then
+#         echo "A imagem Docker $image_name já existe."
+#     else
+#         docker build -t "$image_name" "$dockerfile_path" || print_error "Falha ao construir a imagem Docker."
+#     fi
+# }
+
+# # Constrói a imagem Docker para o projeto Java
+# build_java_image
