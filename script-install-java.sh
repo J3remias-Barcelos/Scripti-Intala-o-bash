@@ -52,183 +52,194 @@ install_package "lxde-core"
 install_package "lxde"
 install_package "tigervnc-standalone-server"
 
-# Define a senha para o usuário 'root' do MySQL
-sudo mysqladmin -u root password 'secret' || print_error "Falha ao definir a senha do MySQL."
+# Deseja instalar o MySQL e Rodar o Script criando estrutura
+echo "Deseja instalar o MySQL e Rodar o Script para criar toda estrutura? [s/n]"
+read -r getMysql
 
-# Instala o MySQL Server
-install_package "mysql-server"
+if [ "$getMysql" == "s"] then
+        # Define a senha para o usuário 'root' do MySQL
+        sudo mysqladmin -u root password 'secret' || print_error "Falha ao definir a senha do MySQL."
 
-# Inicia o serviço do MySQL
-sudo service mysql start || print_error "Falha ao iniciar o serviço MySQL."
+        # Instala o MySQL Server
+        install_package "mysql-server"
 
-# Configura o MySQL para iniciar automaticamente na inicialização
-sudo systemctl enable mysql
+        # Inicia o serviço do MySQL
+        sudo service mysql start || print_error "Falha ao iniciar o serviço MySQL."
 
-# Função para criar banco de dados e usuário
-create_database_and_user() {
-    db_name="$1"
-    db_user="$2"
-    db_password="$3"
-    mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS $db_name;" || print_error "Falha ao criar o banco de dados."
-    mysql -u root -p -e "CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_password';" || print_error "Falha ao criar o usuário."
-    mysql -u root -p -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';" || print_error "Falha ao conceder privilégios."
-    mysql -u root -p -e "FLUSH PRIVILEGES;" || print_error "Falha ao atualizar privilégios."
-}
+        # Configura o MySQL para iniciar automaticamente na inicialização
+        sudo systemctl enable mysql
 
-# Cria um banco de dados e um usuário
-create_database_and_user "NEXUS" "pi" "secret"
+        # Função para criar banco de dados e usuário
+        create_database_and_user() {
+            db_name="$1"
+            db_user="$2"
+            db_password="$3"
+            mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS $db_name;" || print_error "Falha ao criar o banco de dados."
+            mysql -u root -p -e "CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_password';" || print_error "Falha ao criar o usuário."
+            mysql -u root -p -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';" || print_error "Falha ao conceder privilégios."
+            mysql -u root -p -e "FLUSH PRIVILEGES;" || print_error "Falha ao atualizar privilégios."
+        }
 
-# URL do arquivo SQL no GitHub
-sql_file_url= wget "https://github.com/Nexus-Enterprises/BancoDeDados/blob/main/Script%20-%20Nexus.sql"
+        # Cria um banco de dados e um usuário
+        create_database_and_user "NEXUS" "pi" "secret"
 
-# Função para baixar e executar arquivo SQL
-download_and_execute_sql() {
-    sql_url="$1"
-    sql_file="$2"
-    if wget -q --spider "$sql_url"; then
-        wget "$sql_url" -O "$sql_file" || print_error "Falha ao baixar o arquivo SQL."
-        mysql -u root -p < "$sql_file" || print_error "Falha ao executar o arquivo SQL."
-    else
-        echo "O arquivo SQL não pôde ser baixado do GitHub. Executando ação alternativa..."
-        # ...
-        # Lógica para criar tabelas e estrutura
-        CREATE DATABASE NEXUS;
-        USE NEXUS;
+        # URL do arquivo SQL no GitHub
+        sql_file_url= wget "https://github.com/Nexus-Enterprises/BancoDeDados/blob/main/Script%20-%20Nexus.sql"
 
-        CREATE TABLE Endereco (
-        idEndereco INT AUTO_INCREMENT PRIMARY KEY,
-        cep CHAR(8) NULL,
-        logradouro VARCHAR(45) NOT NULL,
-        bairro VARCHAR(45) NOT NULL,
-        localidade VARCHAR(45) NOT NULL,
-        uf CHAR(2) NOT NULL,
-        complemento VARCHAR(45) NULL
+        # Função para baixar e executar arquivo SQL
+        download_and_execute_sql() {
+            sql_url="$1"
+            sql_file="$2"
+            if wget -q --spider "$sql_url"; then
+                wget "$sql_url" -O "$sql_file" || print_error "Falha ao baixar o arquivo SQL."
+                mysql -u root -p < "$sql_file" || print_error "Falha ao executar o arquivo SQL."
+            else
+                echo "O arquivo SQL não pôde ser baixado do GitHub. Executando ação alternativa..."
+                # ...
+                # Lógica para criar tabelas e estrutura
+                CREATE DATABASE NEXUS;
+                USE NEXUS;
+
+                CREATE TABLE Endereco (
+                idEndereco INT AUTO_INCREMENT PRIMARY KEY,
+                cep CHAR(8) NULL,
+                logradouro VARCHAR(45) NOT NULL,
+                bairro VARCHAR(45) NOT NULL,
+                localidade VARCHAR(45) NOT NULL,
+                uf CHAR(2) NOT NULL,
+                complemento VARCHAR(45) NULL
+                );
+
+                CREATE TABLE Empresa (
+                idEmpresa INT AUTO_INCREMENT PRIMARY KEY,
+                nomeEmpresa VARCHAR(45) NOT NULL,
+                CNPJ VARCHAR(14) NOT NULL UNIQUE,
+                digito CHAR(3) NOT NULL,
+                descricao VARCHAR(45) NULL,
+                ispb CHAR(8) NOT NULL,
+                situacao TINYINT NULL
+                );
+
+                CREATE TABLE Agencia (
+                idAgencia INT AUTO_INCREMENT PRIMARY KEY,
+                numero CHAR(5) NULL,
+                digitoAgencia CHAR(1) NULL,
+                ddd CHAR(2) NULL,
+                telefone VARCHAR(9) NULL,
+                email VARCHAR(45) NULL UNIQUE,
+                fkEmpresa INT NOT NULL,
+                fkEndereco INT NOT NULL,
+                CONSTRAINT fkEndereco
+                    FOREIGN KEY (fkEndereco)
+                    REFERENCES Endereco (idEndereco),
+                CONSTRAINT fkEmpresaAgencia
+                    FOREIGN KEY (fkEmpresa)
+                    REFERENCES Empresa (idEmpresa)
+                );
+
+                CREATE TABLE Funcionario (
+                idFuncionario INT AUTO_INCREMENT PRIMARY KEY,
+                nome VARCHAR(45) NULL,
+                sobrenome VARCHAR(45) NULL,
+                emailCorporativo VARCHAR(45) NULL UNIQUE,
+                ddd CHAR(2) NULL,
+                telefone VARCHAR(9) NULL UNIQUE,
+                cargo VARCHAR(45) NULL,
+                situacao VARCHAR(10) NULL,
+                fkAgencia INT NOT NULL,
+                fkEmpresa INT NOT NULL,
+                fkFuncionario INT NULL,
+                CONSTRAINT fkAgencia
+                    FOREIGN KEY (fkAgencia)
+                    REFERENCES Agencia (idAgencia),
+                CONSTRAINT fkEmpresa
+                    FOREIGN KEY (fkEmpresa)
+                    REFERENCES Empresa (idEmpresa),
+                CONSTRAINT fkFuncionario
+                    FOREIGN KEY (fkFuncionario)
+                    REFERENCES Funcionario (idFuncionario)
+                );
+
+                CREATE TABLE Usuario (
+                idUsuario INT AUTO_INCREMENT PRIMARY KEY,
+                email VARCHAR(45) NOT NULL UNIQUE,
+                token VARCHAR(50) NOT NULL,
+                fkFuncionario INT NOT NULL UNIQUE,
+                FOREIGN KEY (fkFuncionario)
+                    REFERENCES Funcionario (idFuncionario)
+                );
+
+
+                CREATE TABLE Maquina (
+                idMaquina INT AUTO_INCREMENT PRIMARY KEY,
+                marca VARCHAR(45) NULL,
+                modelo VARCHAR(45) NULL,
+                situacao VARCHAR(10) NULL,
+                sistemaOperacional VARCHAR(15) NULL,
+                fkFuncionario INT NOT NULL,
+                fkAgencia INT NOT NULL,
+                fkEmpresa INT NOT NULL,
+                CONSTRAINT fkFuncionarioMaq
+                    FOREIGN KEY (fkFuncionario)
+                    REFERENCES Funcionario (idFuncionario),
+                CONSTRAINT fkAgenciaMaq
+                    FOREIGN KEY (fkAgencia)
+                    REFERENCES Agencia (idAgencia),
+                CONSTRAINT fkEmpresaMaq
+                    FOREIGN KEY (fkEmpresa)
+                    REFERENCES Empresa (idEmpresa)
+                );
+
+                CREATE TABLE Componente (
+                idComponente INT AUTO_INCREMENT PRIMARY KEY,
+                nome VARCHAR(45) NULL,
+                modelo VARCHAR(45) NULL,
+                capacidadeMax DOUBLE NULL,
+                montagem VARCHAR(45) NULL,
+                fkMaquina INT NOT NULL,
+                CONSTRAINT fkMaquinaComponente
+                    FOREIGN KEY (fkMaquina)
+                    REFERENCES Maquina (idMaquina)
+                );
+
+                CREATE TABLE Alerta (
+                idAlerta INT AUTO_INCREMENT PRIMARY KEY,
+                causa VARCHAR(60) NOT NULL,
+                gravidade VARCHAR(45) NOT NULL
+                );
+
+                CREATE TABLE Registro (
+                idRegistro INT AUTO_INCREMENT PRIMARY KEY,
+                enderecoIPV4 VARCHAR(500) NOT NULL,
+                usoAtual DOUBLE NOT NULL,
+                dataHora DATETIME NOT NULL,
+                fkAlerta INT NOT NULL,
+                fkComponente INT NOT NULL,
+                fkMaquina INT NOT NULL,
+                CONSTRAINT fkAlertaRegistro
+                    FOREIGN KEY (fkAlerta)
+                    REFERENCES Alerta (idAlerta),
+                CONSTRAINT fkComponenteRegistro
+                    FOREIGN KEY (fkComponente)
+                    REFERENCES Componente (idComponente),
+                CONSTRAINT fkMaquinaRegistro
+                    FOREIGN KEY (fkMaquina)
+                    REFERENCES Maquina (idMaquina)
         );
+            fi
+        }
 
-        CREATE TABLE Empresa (
-        idEmpresa INT AUTO_INCREMENT PRIMARY KEY,
-        nomeEmpresa VARCHAR(45) NOT NULL,
-        CNPJ VARCHAR(14) NOT NULL UNIQUE,
-        digito CHAR(3) NOT NULL,
-        descricao VARCHAR(45) NULL,
-        ispb CHAR(8) NOT NULL,
-        situacao TINYINT NULL
-        );
+        # Baixa e executa o arquivo SQL
+        download_and_execute_sql "$sql_file_url" "script.sql" || print_error "Falha ao baixar e executar o arquivo SQL."
 
-        CREATE TABLE Agencia (
-        idAgencia INT AUTO_INCREMENT PRIMARY KEY,
-        numero CHAR(5) NULL,
-        digitoAgencia CHAR(1) NULL,
-        ddd CHAR(2) NULL,
-        telefone VARCHAR(9) NULL,
-        email VARCHAR(45) NULL UNIQUE,
-        fkEmpresa INT NOT NULL,
-        fkEndereco INT NOT NULL,
-        CONSTRAINT fkEndereco
-            FOREIGN KEY (fkEndereco)
-            REFERENCES Endereco (idEndereco),
-        CONSTRAINT fkEmpresaAgencia
-            FOREIGN KEY (fkEmpresa)
-            REFERENCES Empresa (idEmpresa)
-        );
+        # Caso o MySQL não esteja rodando/estrutura não foi criada, buscar o script SQL no diretório do projeto
+        sudo mysql -u root -p < "script.sql" || print_error "Falha ao executar o arquivo SQL."
 
-        CREATE TABLE Funcionario (
-        idFuncionario INT AUTO_INCREMENT PRIMARY KEY,
-        nome VARCHAR(45) NULL,
-        sobrenome VARCHAR(45) NULL,
-        emailCorporativo VARCHAR(45) NULL UNIQUE,
-        ddd CHAR(2) NULL,
-        telefone VARCHAR(9) NULL UNIQUE,
-        cargo VARCHAR(45) NULL,
-        situacao VARCHAR(10) NULL,
-        fkAgencia INT NOT NULL,
-        fkEmpresa INT NOT NULL,
-        fkFuncionario INT NULL,
-        CONSTRAINT fkAgencia
-            FOREIGN KEY (fkAgencia)
-            REFERENCES Agencia (idAgencia),
-        CONSTRAINT fkEmpresa
-            FOREIGN KEY (fkEmpresa)
-            REFERENCES Empresa (idEmpresa),
-        CONSTRAINT fkFuncionario
-            FOREIGN KEY (fkFuncionario)
-            REFERENCES Funcionario (idFuncionario)
-        );
+        else 
+            echo "Você optou por não instalar o MySQL. Saindo..."
+            exit 1
+fi
 
-        CREATE TABLE Usuario (
-        idUsuario INT AUTO_INCREMENT PRIMARY KEY,
-        email VARCHAR(45) NOT NULL UNIQUE,
-        token VARCHAR(50) NOT NULL,
-        fkFuncionario INT NOT NULL UNIQUE,
-        FOREIGN KEY (fkFuncionario)
-            REFERENCES Funcionario (idFuncionario)
-        );
-
-
-        CREATE TABLE Maquina (
-        idMaquina INT AUTO_INCREMENT PRIMARY KEY,
-        marca VARCHAR(45) NULL,
-        modelo VARCHAR(45) NULL,
-        situacao VARCHAR(10) NULL,
-        sistemaOperacional VARCHAR(15) NULL,
-        fkFuncionario INT NOT NULL,
-        fkAgencia INT NOT NULL,
-        fkEmpresa INT NOT NULL,
-        CONSTRAINT fkFuncionarioMaq
-            FOREIGN KEY (fkFuncionario)
-            REFERENCES Funcionario (idFuncionario),
-        CONSTRAINT fkAgenciaMaq
-            FOREIGN KEY (fkAgencia)
-            REFERENCES Agencia (idAgencia),
-        CONSTRAINT fkEmpresaMaq
-            FOREIGN KEY (fkEmpresa)
-            REFERENCES Empresa (idEmpresa)
-        );
-
-        CREATE TABLE Componente (
-        idComponente INT AUTO_INCREMENT PRIMARY KEY,
-        nome VARCHAR(45) NULL,
-        modelo VARCHAR(45) NULL,
-        capacidadeMax DOUBLE NULL,
-        montagem VARCHAR(45) NULL,
-        fkMaquina INT NOT NULL,
-        CONSTRAINT fkMaquinaComponente
-            FOREIGN KEY (fkMaquina)
-            REFERENCES Maquina (idMaquina)
-        );
-
-        CREATE TABLE Alerta (
-        idAlerta INT AUTO_INCREMENT PRIMARY KEY,
-        causa VARCHAR(60) NOT NULL,
-        gravidade VARCHAR(45) NOT NULL
-        );
-
-        CREATE TABLE Registro (
-        idRegistro INT AUTO_INCREMENT PRIMARY KEY,
-        enderecoIPV4 VARCHAR(500) NOT NULL,
-        usoAtual DOUBLE NOT NULL,
-        dataHora DATETIME NOT NULL,
-        fkAlerta INT NOT NULL,
-        fkComponente INT NOT NULL,
-        fkMaquina INT NOT NULL,
-        CONSTRAINT fkAlertaRegistro
-            FOREIGN KEY (fkAlerta)
-            REFERENCES Alerta (idAlerta),
-        CONSTRAINT fkComponenteRegistro
-            FOREIGN KEY (fkComponente)
-            REFERENCES Componente (idComponente),
-        CONSTRAINT fkMaquinaRegistro
-            FOREIGN KEY (fkMaquina)
-            REFERENCES Maquina (idMaquina)
-);
-    fi
-}
-
-# Baixa e executa o arquivo SQL
-download_and_execute_sql "$sql_file_url" "script.sql" || print_error "Falha ao baixar e executar o arquivo SQL."
-
-# Caso o MySQL não esteja rodando/estrutura não foi criada, buscar o script SQL no diretório do projeto
-sudo mysql -u root -p < "script.sql" || print_error "Falha ao executar o arquivo SQL."
 
 
 # Verifica se o Java 17 está instalado
@@ -248,13 +259,13 @@ fi
 java -version && javac -version
 
 # Baixa o arquivo .jar diretamente do link
-wget https://github.com/Nexus-Enterprises/login-Java/raw/main/Nexus/target/Nexus-1.0.jar -O login.jar || print_error "Falha ao baixar o arquivo JAR."
+wget https://github.com/Nexus-Enterprises/login-Java/blob/main/Nexus/target/Nexus-1.0-jar-with-dependencies.jar -O nexus.jar || print_error "Falha ao baixar o arquivo JAR."
 
 # Permissão para o arquivo .jar
-chmod +x login.jar
+chmod +x nexus.jar
 
 # Executa o arquivo .jar
-java -jar login.jar
+java -jar nexus.jar
 
 
 # # Instala o Docker
