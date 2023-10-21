@@ -1,13 +1,42 @@
 #!/bin/bash
 
-# Atualiza o sistema e instala pacotes necessários
-sudo apt update
-sudo apt upgrade -y
+# Função para exibir mensagens de erro
+print_error() {
+    echo "Erro: $1"
+    exit 1
+}
 
-# Cria um usuário se ele não existir
-if ! id "pi" &>/dev/null; then
-    sudo adduser pi
+# Verifica se o usuário está executando o script com privilégios de superusuário
+if [ "$EUID" -ne 0 ]; then
+    print_error "Este script deve ser executado com privilégios de superusuário (root)."
 fi
+
+# Função para instalar pacotes com tratamento de erro
+install_package() {
+    package_name="$1"
+    if dpkg -l | grep -q "$package_name"; then
+        echo "$package_name já está instalado."
+    else
+        sudo apt-get -y install "$package_name" || print_error "Falha ao instalar $package_name."
+    fi
+}
+
+# Atualiza o sistema
+sudo apt update || print_error "Falha ao atualizar o sistema."
+sudo apt upgrade -y || print_error "Falha ao atualizar o sistema."
+
+# Função para criar usuário se ele não existir
+create_user() {
+    username="$1"
+    if id "$username" &>/dev/null; then
+        echo "Usuário $username já existe."
+    else
+        adduser "$username" || print_error "Falha ao criar o usuário $username."
+    fi
+}
+
+# Cria ou atualiza o usuário "pi"
+create_user "pi"
 
 # Adiciona o usuário ao grupo sudo
 sudo usermod -aG sudo pi
@@ -17,38 +46,52 @@ sudo usermod -aG root pi
 sudo passwd ubuntu
 sudo passwd root
 
-# Instalar o RDP no Ubuntu - Terminal
-sudo apt install xrdp lxde-core lxde tigervnc-standalone-server -y
+# Instala o RDP no Ubuntu
+install_package "xrdp"
+install_package "lxde-core"
+install_package "lxde"
+install_package "tigervnc-standalone-server"
+
+# Define a senha para o usuário 'root' do MySQL
+sudo mysqladmin -u root password 'secret' || print_error "Falha ao definir a senha do MySQL."
 
 # Instala o MySQL Server
-sudo apt install mysql-server -y
+install_package "mysql-server"
 
 # Inicia o serviço do MySQL
-sudo service mysql start
+sudo service mysql start || print_error "Falha ao iniciar o serviço MySQL."
 
 # Configura o MySQL para iniciar automaticamente na inicialização
-sudo systemctl enable mysql
+suso systemctl enable mysql
+
+# Função para criar banco de dados e usuário
+create_database_and_user() {
+    db_name="$1"
+    db_user="$2"
+    db_password="$3"
+    mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS $db_name;" || print_error "Falha ao criar o banco de dados."
+    mysql -u root -p -e "CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_password';" || print_error "Falha ao criar o usuário."
+    mysql -u root -p -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';" || print_error "Falha ao conceder privilégios."
+    mysql -u root -p -e "FLUSH PRIVILEGES;" || print_error "Falha ao atualizar privilégios."
+}
 
 # Cria um banco de dados e um usuário
-mysql -u root -p -e "CREATE DATABASE NEXUS;"
-mysql -u root -p -e "CREATE USER 'pi'@'localhost' IDENTIFIED BY 'secret';"
-mysql -u root -p -e "GRANT ALL PRIVILEGES ON NEXUS.* TO 'pi'@'localhost';"
-mysql -u root -p -e "FLUSH PRIVILEGES;"
+create_database_and_user "NEXUS" "pi" "secret"
 
 # URL do arquivo SQL no GitHub
 sql_file_url="https://github.com/Nexus-Enterprises/BancoDeDados/blob/main/Script%20-%20Nexus.sql"
 
-# Baixa o arquivo SQL diretamente do GitHub
-if wget -q --spider "$sql_file_url"; then
-    # Se o arquivo estiver disponível, baixe-o
-    wget "$sql_file_url" -O script.sql
-    # Execute o script SQL no MySQL
-    mysql -u root -p < script.sql
-else
-    # Se o arquivo não estiver disponível, execute alguma ação alternativa
-    echo "O arquivo SQL não pôde ser baixado do GitHub. Então executando ação alternativa..."
-    
-    # Criando todas as tabelas e estrutura
+# Função para baixar e executar arquivo SQL
+download_and_execute_sql() {
+    sql_url="$1"
+    sql_file="$2"
+    if wget -q --spider "$sql_url"; then
+        wget "$sql_url" -O "$sql_file" || print_error "Falha ao baixar o arquivo SQL."
+        mysql -u root -p < "$sql_file" || print_error "Falha ao executar o arquivo SQL."
+    else
+        echo "O arquivo SQL não pôde ser baixado do GitHub. Executando ação alternativa..."
+        # ...
+        # Lógica para criar tabelas e estrutura
         # Cria o banco de dados "NEXUS"
         echo "CREATE DATABASE NEXUS;" | mysql -u root -p
         echo "USE NEXUS;" | mysql -u root -p
@@ -162,17 +205,20 @@ else
         CONSTRAINT fkComponenteRegistro FOREIGN KEY (fkComponente) REFERENCES Componente (idComponente),
         CONSTRAINT fkMaquinaRegistro FOREIGN KEY (fkMaquina) REFERENCES Maquina (idMaquina)
         );" | mysql -u root -p
-fi
+        # ...
+    fi
+}
 
+# Baixa e executa o arquivo SQL
+download_and_execute_sql "$sql_file_url" "script.sql"
 
 # Verifica se o Java 17 está instalado
 if ! command -v java &>/dev/null || [[ $(java -version 2>&1 | grep -c "17\..*") -eq 0 ]]; then
     echo "Java 17 não está instalado. Deseja instalar o Java? [s/n]"
-    read get
+    read -r get
     if [ "$get" == "s" ]; then
-        # Instala o Java 17
         # Instala o OpenJDK 17 JRE
-    sudo apt install -y openjdk-17-jre
+        install_package "openjdk-17-jre"
     else
         echo "Você optou por não instalar o Java. Saindo..."
         exit 1
@@ -182,21 +228,10 @@ fi
 # Verifica a instalação do Java JRE
 java -version && javac -version
 
-
 # Baixa o arquivo .jar diretamente do link
-wget https://github.com/Nexus-Enterprises/login-Java/raw/main/Nexus/target/Nexus-1.0.jar -O login.jar
+wget https://github.com/Nexus-Enterprises/login-Java/blob/main/Nexus/target/Nexus-1.0-jar-with-dependencies.jar -O login.jar || print_error "Falha ao baixar o arquivo JAR com dependencies."
+wget https://github.com/Nexus-Enterprises/login-Java/raw/main/Nexus/target/Nexus-1.0.jar -O login.jar || print_error "Falha ao baixar o arquivo JAR."
 
 # Executa o arquivo .jar
+
 java -jar login.jar
-
-
-# Instala o Docker (descomente se for necessário)
-# sudo apt install docker.io -y
-
-# Cria e inicia um container MySQL
-# Certifique-se de fornecer as configurações adequadas para o banco de dados
-# (usuário, senha, nome do banco de dados, etc.)
-# sudo docker run -d --name mysql-container -e MYSQL_ROOT_PASSWORD=sua_senha -e MYSQL_DATABASE=seu_banco_de_dados mysql:latest
-
-# Se desejar, você pode criar uma imagem Docker para a aplicação Java
-# sudo docker build -t login-java .
