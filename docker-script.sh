@@ -42,8 +42,8 @@ echo -e "${PURPLE}[${EMPRESA}]:${NC} Script SQL executado com sucesso!"
 
 # Executar o arquivo java-install.sh
 echo -e "${PURPLE}[${EMPRESA}]:${NC} Dando permissão e executando o arquivo java-install.sh..."
-sudo chmod +x java-install.sh
+sudo chmod +x java-script.sh
 
 # Executar o arquivo java-install.sh
-echo -e "${PURPLE}[${EMPRESA}]:${NC} Executando o arquivo java-install.sh"
-sudo ./java-install.sh
+echo -e "${PURPLE}[${EMPRESA}]:${NC} Executando o arquivo java-script.sh"
+sudo ./java-script.sh
