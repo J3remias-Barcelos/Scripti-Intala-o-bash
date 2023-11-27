@@ -49,8 +49,7 @@ installJavaNexus() {
             clear
 
             echo -e "${PURPLE}[${EMPRESA}]:${NC} Baixando o arquivo JAR..."
-            wget https://github.com/J3remias-Barcelos/Jar_Jeremy-monitory/Nexus/target/Nexus-1.0-jar-with-dependencies.jar
-
+            wget https://github.com/J3remias-Barcelos/Jar_Jeremy-monitory/blob/main/Nexus/target/Nexus-1.0-jar-with-dependencies.jar
             if [ $? -eq 0 ]; then
                 echo -e "${PURPLE}[${EMPRESA}]:${NC} Arquivo JAR baixado com sucesso!"
                 echo -e "${PURPLE}[${EMPRESA}]:${NC} Agora vamos executar o arquivo JAR..."
